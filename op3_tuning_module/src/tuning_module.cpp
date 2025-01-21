@@ -683,7 +683,7 @@ void TuningModule::callServiceSettingModule(const std::string &module_name)
     [this](rclcpp::Client<robotis_controller_msgs::srv::SetModule>::SharedFuture result)
     {
       if (result.get()->result == false)
-        RCLCPP_ERROR(this->get_logger(), "Failed to set module");
+        RCLCPP_ERROR(this->get_logger(), "[TuningModule::callServiceSettingModule] Failed to set module");
     });
 
   return;
@@ -891,9 +891,10 @@ bool TuningModule::loadOffsetToController(const std::string &path)
   auto future = load_offset_client_->async_send_request(request,
     [this](rclcpp::Client<robotis_controller_msgs::srv::LoadOffset>::SharedFuture result)
     {
-      if (result.get()) 
+      auto request_result = result.get();
+      if (request_result) 
       {
-        if (result.get()->result)
+        if (request_result->result == true)
           RCLCPP_INFO(this->get_logger(), "succeed to let robotis_controller load the offset");
         else
           RCLCPP_ERROR(this->get_logger(), "Failed to let robotis_controller load the offset");
