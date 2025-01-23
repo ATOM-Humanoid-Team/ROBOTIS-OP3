@@ -7,7 +7,7 @@ from launch.substitutions import LaunchConfiguration
 def generate_launch_description():
     gazebo_default = False
     gazebo_robot_name_default = 'robotis_op3'
-    offset_file_path_default = get_package_share_directory('op3_tuning_module') + '/data/offset.yaml'
+    offset_file_path_default = get_package_share_directory('op3_manager') + '/data/offset.yaml'
     robot_file_path_default = get_package_share_directory('op3_manager') + '/config/OP3.robot'
     init_file_path_default = get_package_share_directory('op3_manager') + '/config/dxl_init_OP3.yaml'
     device_name_default = '/dev/ttyUSB0'

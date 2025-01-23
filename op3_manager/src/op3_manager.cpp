@@ -177,7 +177,7 @@ int main(int argc, char **argv)
   {
     // open port
     PortHandler *port_handler = (PortHandler *) PortHandler::getPortHandler(g_device_name.c_str());
-    bool set_port_result = port_handler->setBaudRate(BAUD_RATE);
+    bool set_port_result = port_handler->setBaudRate(g_baudrate);
     if (set_port_result == false)
       RCLCPP_ERROR(node->get_logger(), "Error Set port");
 
