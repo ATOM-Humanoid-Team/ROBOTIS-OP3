@@ -71,8 +71,13 @@ void TuningModule::initialize(const int control_cycle_msec, robotis_framework::R
 
   tune_pose_path_ = ament_index_cpp::get_package_share_directory("op3_tuning_module") + "/data/tune_pose.yaml";
   offset_path_ = ament_index_cpp::get_package_share_directory("op3_manager") + "/config/offset.yaml";
-  this->get_parameter_or<std::string>("offset_file_path", offset_path_, offset_path_);
-  this->get_parameter_or<std::string>("init_file_path", init_file_path_, "");
+  init_file_path_ = ament_index_cpp::get_package_share_directory("op3_manager") + "/config/dxl_init_OP3.yaml";
+
+  this->declare_parameter<std::string>("offset_file_path", offset_path_);
+  this->declare_parameter<std::string>("init_file_path", init_file_path_);
+
+  this->get_parameter<std::string>("offset_file_path", offset_path_);
+  this->get_parameter<std::string>("init_file_path", init_file_path_);
 
   parseOffsetData(offset_path_);
   parseInitPoseData(tune_pose_path_);
