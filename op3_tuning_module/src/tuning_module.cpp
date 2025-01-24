@@ -70,7 +70,7 @@ void TuningModule::initialize(const int control_cycle_msec, robotis_framework::R
   sync_write_pub_ = this->create_publisher<robotis_controller_msgs::msg::SyncWriteItem>("/robotis/sync_write_item", 1);
 
   tune_pose_path_ = ament_index_cpp::get_package_share_directory("op3_tuning_module") + "/data/tune_pose.yaml";
-  offset_path_ = ament_index_cpp::get_package_share_directory("op3_tuning_module") + "/data/offset.yaml";
+  offset_path_ = ament_index_cpp::get_package_share_directory("op3_manager") + "/config/offset.yaml";
   this->get_parameter_or<std::string>("offset_file_path", offset_path_, offset_path_);
   this->get_parameter_or<std::string>("init_file_path", init_file_path_, "");
 
