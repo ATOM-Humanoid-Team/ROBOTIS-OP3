@@ -168,8 +168,8 @@ int main(int argc, char **argv)
   g_init_pose_pub = node->create_publisher<std_msgs::msg::String>("/robotis/base/ini_pose", 10);
   g_demo_command_pub = node->create_publisher<std_msgs::msg::String>("/ball_tracker/command", 10);
 
-  node->declare_parameter<bool>("gazebo", false);
-  node->get_parameter("gazebo", controller->gazebo_mode_);
+  node->declare_parameter<bool>("simulation", false);
+  node->get_parameter("simulation", controller->gazebo_mode_);
   g_is_simulation = controller->gazebo_mode_;
 
   /* real robot */
@@ -214,13 +214,13 @@ int main(int argc, char **argv)
 
     port_handler->closePort();
   }
-  /* gazebo simulation */
+  /* simulation mode */
   else
   {
-    RCLCPP_WARN(node->get_logger(), "SET TO GAZEBO MODE!");
+    RCLCPP_WARN(node->get_logger(), "SET TO SIMULATION MODE!");
     std::string robot_name;
-    node->declare_parameter<std::string>("gazebo_robot_name", "");
-    node->get_parameter("gazebo_robot_name", robot_name);
+    node->declare_parameter<std::string>("simulation_robot_name", "");
+    node->get_parameter("simulation_robot_name", robot_name);
     if (robot_name != "")
       controller->gazebo_robot_name_ = robot_name;
   }
