@@ -96,6 +96,9 @@ void TuningModule::moveToInitPose()
       std::this_thread::sleep_for(std::chrono::milliseconds(8));
   }
 
+  if (tra_gene_thread_.joinable())
+    tra_gene_thread_.join();
+
   // get target pose from yaml file
   parseInitPoseData(tune_pose_path_);
 
@@ -110,6 +113,9 @@ void TuningModule::moveToTunePose(const std::string &pose_name)
     RCLCPP_ERROR(this->get_logger(), "op3_tuning_module is not enable!!");
     return;
   }
+
+  if (tra_gene_thread_.joinable())
+    tra_gene_thread_.join();
 
   // get target pose from yaml file
   parseTunePoseData(tune_pose_path_, pose_name);
@@ -159,7 +165,7 @@ bool TuningModule::parseInitPoseData(const std::string &path)
     doc = YAML::LoadFile(path.c_str());
   } catch (const std::exception& e)
   {
-    RCLCPP_ERROR(this->get_logger(), "Fail to load yaml file.");
+    RCLCPP_ERROR(this->get_logger(), "Fail to load yaml file.: %s", e.what());
     return false;
   }
 
@@ -188,8 +194,14 @@ bool TuningModule::parseInitPoseData(const std::string &path)
     std::string joint_name;
     double value;
 
-    joint_name = yaml_it->first.as<std::string>();
-    value = yaml_it->second.as<double>();
+    try {
+      joint_name = yaml_it->first.as<std::string>();
+      value = yaml_it->second.as<double>();
+    } catch (const std::exception& e) {
+      RCLCPP_ERROR(this->get_logger(), "Fail to parse target_pose: %s", e.what());
+      return false;
+    }
+
     int id = joint_name_to_id_[joint_name];
 
     tuning_module_state_->joint_ini_pose_.coeffRef(id, 0) = value * DEGREE2RADIAN;
