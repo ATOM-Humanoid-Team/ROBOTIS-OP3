@@ -27,11 +27,11 @@ def generate_launch_description():
                 'init_file_path': init_file_path_default,
                 'device_name': device_name_default
             }]
-        ),
-        Node(
-            package='op3_localization',
-            executable='op3_localization',
-            name='op3_localization',
-            output='screen'
         )
+        # Node(
+        #     package='op3_localization',
+        #     executable='op3_localization',
+        #     name='op3_localization',
+        #     output='screen'
+        # )
     ])
