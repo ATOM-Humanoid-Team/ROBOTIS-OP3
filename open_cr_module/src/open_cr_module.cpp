@@ -84,7 +84,7 @@ void OpenCRModule::queueThread()
   status_msg_pub_ = this->create_publisher<robotis_controller_msgs::msg::StatusMsg>("/robotis/status", 1);
   imu_pub_ = this->create_publisher<sensor_msgs::msg::Imu>("/robotis/open_cr/imu", 1);
   button_pub_ = this->create_publisher<std_msgs::msg::String>("/robotis/open_cr/button", 1);
-  dxl_power_msg_pub_ = this->create_publisher<robotis_controller_msgs::msg::SyncWriteItem>("/robotis/sync_write_item", 0);
+  dxl_power_msg_pub_ = this->create_publisher<robotis_controller_msgs::msg::SyncWriteItem>("/robotis/sync_write_item", 1);
 
   rclcpp::WallRate rate(1000.0 / control_cycle_msec_);
   while (rclcpp::ok())

@@ -122,7 +122,7 @@ void WalkingModule::initialize(const int control_cycle_msec, robotis_framework::
   walking_param_.z_move_amplitude = 0.040;    // foot height
   walking_param_.angle_move_amplitude = 0.0;
   // balance
-  walking_param_.balance_enable = false;
+  walking_param_.balance_enable = true;
   walking_param_.balance_hip_roll_gain = 0.5;
   walking_param_.balance_knee_gain = 0.3;
   walking_param_.balance_ankle_roll_gain = 1.0;
@@ -578,7 +578,7 @@ void WalkingModule::process(std::map<std::string, robotis_framework::Dynamixel *
     // result_[joint_name]->position_d_gain_ = walking_param_.d_gain;
   }
 
-  setJointGains(balancing_idx_);
+  //setJointGains(balancing_idx_);
 
   // time
   if (real_running_ == true)
