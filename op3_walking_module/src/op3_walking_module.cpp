@@ -16,6 +16,7 @@
 
 /* Author: Kayman */
 
+#include <ament_index_cpp/get_package_share_directory.hpp>
 #include "op3_walking_module/op3_walking_module.h"
 
 namespace robotis_op
@@ -34,8 +35,9 @@ static const int BalancingPhase9 = 9; // DSP : END
 
 
 WalkingModule::WalkingModule()
-    : control_cycle_msec_(8),
-      DEBUG(false)
+  : Node("op3_walking_module"),
+    control_cycle_msec_(8),
+    DEBUG(false)
 {
   enable_ = false;
   module_name_ = "walking_module";
@@ -98,7 +100,7 @@ WalkingModule::~WalkingModule()
 
 void WalkingModule::initialize(const int control_cycle_msec, robotis_framework::Robot *robot)
 {
-  queue_thread_ = boost::thread(boost::bind(&WalkingModule::queueThread, this));
+  queue_thread_ = std::thread(&WalkingModule::queueThread, this);
   control_cycle_msec_ = control_cycle_msec;
 
   // m, s, rad
@@ -120,7 +122,7 @@ void WalkingModule::initialize(const int control_cycle_msec, robotis_framework::
   walking_param_.z_move_amplitude = 0.040;    // foot height
   walking_param_.angle_move_amplitude = 0.0;
   // balance
-  walking_param_.balance_enable = false;
+  walking_param_.balance_enable = true;
   walking_param_.balance_hip_roll_gain = 0.5;
   walking_param_.balance_knee_gain = 0.3;
   walking_param_.balance_ankle_roll_gain = 1.0;
@@ -153,17 +155,16 @@ void WalkingModule::initialize(const int control_cycle_msec, robotis_framework::
   //                     L_HIP_YAW, L_HIP_ROLL, L_HIP_PITCH, L_KNEE, L_ANKLE_PITCH, L_ANKLE_ROLL,
   //                     R_ARM_SWING, L_ARM_SWING
   joint_axis_direction_ <<      -1,         -1,          -1,     -1,             1,            1,
-                                -1,         -1,           1,      1,            -1,            1,
-                                 1,         -1;
+                -1,         -1,           1,      1,            -1,            1,
+                 1,         -1;
   init_position_        <<     0.0,        0.0,         0.0,    0.0,           0.0,          0.0,
-                               0.0,        0.0,         0.0,    0.0,           0.0,          0.0,
-                               5.0,       -5.0;
+                 0.0,        0.0,         0.0,    0.0,           0.0,          0.0,
+                 5.0,       -5.0;
   init_position_ *= DEGREE2RADIAN;
 
-  ros::NodeHandle ros_node;
-
-  std::string default_param_path = ros::package::getPath("op3_walking_module") + "/config/param.yaml";
-  ros_node.param<std::string>("walking_param_path", param_path_, default_param_path);
+  std::string default_param_path = ament_index_cpp::get_package_share_directory("op3_walking_module") + "/config/param.yaml";
+  this->declare_parameter<std::string>("walking_param_path", default_param_path);
+  this->get_parameter("walking_param_path", param_path_);
 
   loadWalkingParam(param_path_);
 
@@ -173,46 +174,46 @@ void WalkingModule::initialize(const int control_cycle_msec, robotis_framework::
 
 void WalkingModule::queueThread()
 {
-  ros::NodeHandle ros_node;
-  ros::CallbackQueue callback_queue;
-
-  ros_node.setCallbackQueue(&callback_queue);
+  auto executor = std::make_shared<rclcpp::executors::SingleThreadedExecutor>();
+  executor->add_node(this->get_node_base_interface());
 
   /* publish topics */
-  status_msg_pub_ = ros_node.advertise<robotis_controller_msgs::StatusMsg>("robotis/status", 1);
+  status_msg_pub_ = this->create_publisher<robotis_controller_msgs::msg::StatusMsg>("robotis/status", 1);
 
   /* ROS Service Callback Functions */
-  ros::ServiceServer get_walking_param_server = ros_node.advertiseService("/robotis/walking/get_params",
-                                                                          &WalkingModule::getWalkigParameterCallback,
-                                                                          this);
+  auto get_walking_param_server = this->create_service<op3_walking_module_msgs::srv::GetWalkingParam>(
+    "/robotis/walking/get_params", std::bind(&WalkingModule::getWalkingParameterCallback, this, std::placeholders::_1, std::placeholders::_2));
 
   /* sensor topic subscribe */
-  ros::Subscriber walking_command_sub = ros_node.subscribe("/robotis/walking/command", 0,
-                                                           &WalkingModule::walkingCommandCallback, this);
-  ros::Subscriber walking_param_sub = ros_node.subscribe("/robotis/walking/set_params", 0,
-                                                         &WalkingModule::walkingParameterCallback, this);
+  auto walking_command_sub = this->create_subscription<std_msgs::msg::String>(
+    "/robotis/walking/command", 10, std::bind(&WalkingModule::walkingCommandCallback, this, std::placeholders::_1));
+  auto walking_param_sub = this->create_subscription<op3_walking_module_msgs::msg::WalkingParam>(
+    "/robotis/walking/set_params", 10, std::bind(&WalkingModule::walkingParameterCallback, this, std::placeholders::_1));
 
-  ros::WallDuration duration(control_cycle_msec_ / 1000.0);
-  while(ros_node.ok())
-    callback_queue.callAvailable(duration);
+  rclcpp::Rate rate(1000.0 / control_cycle_msec_);
+  while (rclcpp::ok())
+  {
+    executor->spin_some();
+    rate.sleep();
+  }
 }
 
 void WalkingModule::publishStatusMsg(unsigned int type, std::string msg)
 {
-  robotis_controller_msgs::StatusMsg status_msg;
-  status_msg.header.stamp = ros::Time::now();
+  auto status_msg = robotis_controller_msgs::msg::StatusMsg();
+  status_msg.header.stamp = rclcpp::Clock().now();
   status_msg.type = type;
   status_msg.module_name = "Walking";
   status_msg.status_msg = msg;
 
-  status_msg_pub_.publish(status_msg);
+  status_msg_pub_->publish(status_msg);
 }
 
-void WalkingModule::walkingCommandCallback(const std_msgs::String::ConstPtr &msg)
+void WalkingModule::walkingCommandCallback(const std_msgs::msg::String::SharedPtr msg)
 {
   if(enable_ == false)
   {
-    ROS_WARN("walking module is not ready.");
+    RCLCPP_WARN(this->get_logger(), "walking module is not ready.");
     return;
   }
 
@@ -228,15 +229,15 @@ void WalkingModule::walkingCommandCallback(const std_msgs::String::ConstPtr &msg
     saveWalkingParam(param_path_);
 }
 
-void WalkingModule::walkingParameterCallback(const op3_walking_module_msgs::WalkingParam::ConstPtr &msg)
+void WalkingModule::walkingParameterCallback(const op3_walking_module_msgs::msg::WalkingParam::SharedPtr msg)
 {
   walking_param_ = *msg;  
 }
 
-bool WalkingModule::getWalkigParameterCallback(op3_walking_module_msgs::GetWalkingParam::Request &req,
-                                               op3_walking_module_msgs::GetWalkingParam::Response &res)
+bool WalkingModule::getWalkingParameterCallback(const std::shared_ptr<op3_walking_module_msgs::srv::GetWalkingParam::Request> req,
+                         std::shared_ptr<op3_walking_module_msgs::srv::GetWalkingParam::Response> res)
 {
-  res.parameters = walking_param_;
+  res->parameters = walking_param_;
 
   return true;
 }
@@ -249,7 +250,7 @@ double WalkingModule::wSin(double time, double period, double period_shift, doub
 // m, rad
 // for default op3: it was used from previos version(OP2) but it's not using now.
 bool WalkingModule::computeIK(double *out, double pos_x, double pos_y, double pos_z, double ori_roll, double ori_pitch,
-                              double ori_yaw)
+                double ori_yaw)
 {
   double thigh_length = 93.0 * 0.001;  //m
   double calf_length = 93.0 * 0.001;  //m
@@ -264,12 +265,12 @@ bool WalkingModule::computeIK(double *out, double pos_x, double pos_y, double po
   transformation_ad = robotis_framework::getTransformationXYZRPY(pos_x, pos_y, pos_z, ori_roll, ori_pitch, ori_yaw);
 
   vector << pos_x + transformation_ad.coeff(0, 2) * ankle_length, pos_y + transformation_ad.coeff(1, 2) * ankle_length, (pos_z
-      - leg_length) + transformation_ad.coeff(2, 2) * ankle_length;
+    - leg_length) + transformation_ad.coeff(2, 2) * ankle_length;
 
   // Get Knee
   r_ac = vector.norm();
   acos_value = acos(
-      (r_ac * r_ac - thigh_length * thigh_length - calf_length * calf_length) / (2 * thigh_length * calf_length));
+    (r_ac * r_ac - thigh_length * thigh_length - calf_length * calf_length) / (2 * thigh_length * calf_length));
   if (std::isnan(acos_value) == 1)
     return false;
   *(out + 3) = acos_value;
@@ -304,14 +305,14 @@ bool WalkingModule::computeIK(double *out, double pos_x, double pos_y, double po
 
   // Get Hip Roll
   atan_value = atan2(transformation_ac.coeff(2, 1),
-                     -transformation_ac.coeff(0, 1) * sin(*(out)) + transformation_ac.coeff(1, 1) * cos(*(out)));
+           -transformation_ac.coeff(0, 1) * sin(*(out)) + transformation_ac.coeff(1, 1) * cos(*(out)));
   if (std::isinf(atan_value) == 1)
     return false;
   *(out + 1) = atan_value;
 
   // Get Hip Pitch and Ankle Pitch
   atan_value = atan2(transformation_ac.coeff(0, 2) * cos(*(out)) + transformation_ac.coeff(1, 2) * sin(*(out)),
-                     transformation_ac.coeff(0, 0) * cos(*(out)) + transformation_ac.coeff(1, 0) * sin(*(out)));
+           transformation_ac.coeff(0, 0) * cos(*(out)) + transformation_ac.coeff(1, 0) * sin(*(out)));
   if (std::isinf(atan_value) == 1)
     return false;
   theta = atan_value;
@@ -319,7 +320,7 @@ bool WalkingModule::computeIK(double *out, double pos_x, double pos_y, double po
   value_l = -thigh_length - cos(*(out + 3)) * calf_length;
   value_m = cos(*(out)) * vector.x() + sin(*(out)) * vector.y();
   value_n = cos(*(out + 1)) * vector.z() + sin(*(out)) * sin(*(out + 1)) * vector.x()
-      - cos(*(out)) * sin(*(out + 1)) * vector.y();
+    - cos(*(out)) * sin(*(out + 1)) * vector.y();
   value_s = (value_k * value_n + value_l * value_m) / (value_k * value_k + value_l * value_l);
   value_c = (value_n - value_k * value_s) / value_l;
   atan_value = atan2(value_s, value_c);
@@ -423,14 +424,14 @@ void WalkingModule::startWalking()
   //updateTimeParam(1.5); // hs
   //time_ = control_cycle_msec_ * 0.001;
 
-  publishStatusMsg(robotis_controller_msgs::StatusMsg::STATUS_INFO, "Start walking");
+  publishStatusMsg(robotis_controller_msgs::msg::StatusMsg::STATUS_INFO, "Start walking");
 }
 
 void WalkingModule::stop()
 {
   ctrl_running_ = false;
   //period_time_ = walking_param_.period_time *1.5; // hs
-  publishStatusMsg(robotis_controller_msgs::StatusMsg::STATUS_INFO, "Stop walking");
+  publishStatusMsg(robotis_controller_msgs::msg::StatusMsg::STATUS_INFO, "Stop walking");
 }
 
 bool WalkingModule::isRunning()
@@ -535,26 +536,26 @@ void WalkingModule::process(std::map<std::string, robotis_framework::Dynamixel *
 
       walking_state_ = WalkingInitPose;
 
-      ROS_WARN_STREAM_COND(DEBUG, "x_offset: " << walking_param_.init_x_offset);
-      ROS_WARN_STREAM_COND(DEBUG, "y_offset: " << walking_param_.init_y_offset);
-      ROS_WARN_STREAM_COND(DEBUG, "z_offset: " << walking_param_.init_z_offset);
-      ROS_WARN_STREAM_COND(DEBUG, "roll_offset: " << walking_param_.init_roll_offset * RADIAN2DEGREE);
-      ROS_WARN_STREAM_COND(DEBUG, "pitch_offset: " << walking_param_.init_pitch_offset * RADIAN2DEGREE);
-      ROS_WARN_STREAM_COND(DEBUG, "yaw_offset: " << walking_param_.init_yaw_offset * RADIAN2DEGREE);
-      ROS_WARN_STREAM_COND(DEBUG, "hip_pitch_offset: " << walking_param_.hip_pitch_offset * RADIAN2DEGREE);
-      ROS_WARN_STREAM_COND(DEBUG, "period_time: " << walking_param_.period_time * 1000);
-      ROS_WARN_STREAM_COND(DEBUG, "dsp_ratio: " << walking_param_.dsp_ratio);
-      ROS_WARN_STREAM_COND(DEBUG, "step_forward_back_ratio: " << walking_param_.step_fb_ratio);
-      ROS_WARN_STREAM_COND(DEBUG, "foot_height: " << walking_param_.z_move_amplitude);
-      ROS_WARN_STREAM_COND(DEBUG, "swing_right_left: " << walking_param_.y_swap_amplitude);
-      ROS_WARN_STREAM_COND(DEBUG, "swing_top_down: " << walking_param_.z_swap_amplitude);
-      ROS_WARN_STREAM_COND(DEBUG, "pelvis_offset: " << walking_param_.pelvis_offset * RADIAN2DEGREE);
-      ROS_WARN_STREAM_COND(DEBUG, "arm_swing_gain: " << walking_param_.arm_swing_gain);
-      ROS_WARN_STREAM_COND(DEBUG, "balance_hip_roll_gain: " << walking_param_.balance_hip_roll_gain);
-      ROS_WARN_STREAM_COND(DEBUG, "balance_knee_gain: " << walking_param_.balance_knee_gain);
-      ROS_WARN_STREAM_COND(DEBUG, "balance_ankle_roll_gain: " << walking_param_.balance_ankle_roll_gain);
-      ROS_WARN_STREAM_COND(DEBUG, "balance_ankle_pitch_gain: " << walking_param_.balance_ankle_pitch_gain);
-      ROS_WARN_STREAM_COND(DEBUG, "balance : " << (walking_param_.balance_enable ? "TRUE" : "FALSE"));
+      RCLCPP_WARN_STREAM(this->get_logger(), "x_offset: " << walking_param_.init_x_offset);
+      RCLCPP_WARN_STREAM(this->get_logger(), "y_offset: " << walking_param_.init_y_offset);
+      RCLCPP_WARN_STREAM(this->get_logger(), "z_offset: " << walking_param_.init_z_offset);
+      RCLCPP_WARN_STREAM(this->get_logger(), "roll_offset: " << walking_param_.init_roll_offset * RADIAN2DEGREE);
+      RCLCPP_WARN_STREAM(this->get_logger(), "pitch_offset: " << walking_param_.init_pitch_offset * RADIAN2DEGREE);
+      RCLCPP_WARN_STREAM(this->get_logger(), "yaw_offset: " << walking_param_.init_yaw_offset * RADIAN2DEGREE);
+      RCLCPP_WARN_STREAM(this->get_logger(), "hip_pitch_offset: " << walking_param_.hip_pitch_offset * RADIAN2DEGREE);
+      RCLCPP_WARN_STREAM(this->get_logger(), "period_time: " << walking_param_.period_time * 1000);
+      RCLCPP_WARN_STREAM(this->get_logger(), "dsp_ratio: " << walking_param_.dsp_ratio);
+      RCLCPP_WARN_STREAM(this->get_logger(), "step_forward_back_ratio: " << walking_param_.step_fb_ratio);
+      RCLCPP_WARN_STREAM(this->get_logger(), "foot_height: " << walking_param_.z_move_amplitude);
+      RCLCPP_WARN_STREAM(this->get_logger(), "swing_right_left: " << walking_param_.y_swap_amplitude);
+      RCLCPP_WARN_STREAM(this->get_logger(), "swing_top_down: " << walking_param_.z_swap_amplitude);
+      RCLCPP_WARN_STREAM(this->get_logger(), "pelvis_offset: " << walking_param_.pelvis_offset * RADIAN2DEGREE);
+      RCLCPP_WARN_STREAM(this->get_logger(), "arm_swing_gain: " << walking_param_.arm_swing_gain);
+      RCLCPP_WARN_STREAM(this->get_logger(), "balance_hip_roll_gain: " << walking_param_.balance_hip_roll_gain);
+      RCLCPP_WARN_STREAM(this->get_logger(), "balance_knee_gain: " << walking_param_.balance_knee_gain);
+      RCLCPP_WARN_STREAM(this->get_logger(), "balance_ankle_roll_gain: " << walking_param_.balance_ankle_roll_gain);
+      RCLCPP_WARN_STREAM(this->get_logger(), "balance_ankle_pitch_gain: " << walking_param_.balance_ankle_pitch_gain);
+      RCLCPP_WARN_STREAM(this->get_logger(), "balance : " << (walking_param_.balance_enable ? "TRUE" : "FALSE"));
     }
     else
     {
@@ -593,77 +594,120 @@ void WalkingModule::process(std::map<std::string, robotis_framework::Dynamixel *
 
 void WalkingModule::setJointGains(int balancing_idx)
 {
+
   if (balancing_idx == 2)
   {
     // L_BALANCING (L Support) first half
-    result_["r_hip_roll" ]->position_p_gain_ = 3000;
-    result_["l_hip_roll" ]->position_p_gain_ = 16000;
+    result_["r_hip_pitch" ]->position_p_gain_ = 1600;
+    result_["l_hip_pitch" ]->position_p_gain_ = 4000;
+    
+    result_["r_hip_roll" ]->position_p_gain_ = 1600;
+    result_["l_hip_roll" ]->position_p_gain_ = 4000;
 
     result_["r_knee" ]->position_p_gain_ = 4000;
-    result_["l_knee" ]->position_p_gain_ = 8000;
+    result_["l_knee" ]->position_p_gain_ = 4000;
 
-    result_["r_ank_pitch" ]->position_p_gain_ = 1600;
-    result_["l_ank_pitch" ]->position_p_gain_ = 3200;
+    result_["r_ank_pitch" ]->position_p_gain_ = 800;
+    result_["l_ank_pitch" ]->position_p_gain_ = 1600;
 
     result_["r_ank_roll" ]->position_p_gain_ = 1600;
-    result_["l_ank_roll" ]->position_p_gain_ = 3200;
+    result_["l_ank_roll" ]->position_p_gain_ = 1600;
   }
   else if (balancing_idx == 3)
   {
     // L_BALANCING (L Support) second half
-    result_["r_hip_roll" ]->position_p_gain_ = 3000;
-    result_["l_hip_roll" ]->position_p_gain_ = 16000;
+    result_["r_hip_pitch" ]->position_p_gain_ = 1600;
+    result_["l_hip_pitch" ]->position_p_gain_ = 4000;
+    
+    result_["r_hip_roll" ]->position_p_gain_ = 1600;
+    result_["l_hip_roll" ]->position_p_gain_ = 4000;
 
     result_["r_knee" ]->position_p_gain_ = 4000;
-    result_["l_knee" ]->position_p_gain_ = 8000;
+    result_["l_knee" ]->position_p_gain_ = 4000;
 
-    result_["r_ank_pitch" ]->position_p_gain_ = 1600;
-    result_["l_ank_pitch" ]->position_p_gain_ = 3200;
+    result_["r_ank_pitch" ]->position_p_gain_ = 800;
+    result_["l_ank_pitch" ]->position_p_gain_ = 1600;
 
     result_["r_ank_roll" ]->position_p_gain_ = 1600;
-    result_["l_ank_roll" ]->position_p_gain_ = 3200;
+    result_["l_ank_roll" ]->position_p_gain_ = 1600;
   }
   else if (balancing_idx == 6)
   {
     // R_BALANCING (R Support) first half
-    result_["r_hip_roll" ]->position_p_gain_ = 16000;
-    result_["l_hip_roll" ]->position_p_gain_ = 3000;
+    result_["r_hip_pitch" ]->position_p_gain_ = 4000;
+    result_["l_hip_pitch" ]->position_p_gain_ = 1600;
     
-    result_["r_knee" ]->position_p_gain_ = 8000;
+    result_["r_hip_roll" ]->position_p_gain_ = 4000;
+    result_["l_hip_roll" ]->position_p_gain_ = 1600;
+
+    result_["r_knee" ]->position_p_gain_ = 4000;
     result_["l_knee" ]->position_p_gain_ = 4000;
 
-    result_["r_ank_pitch" ]->position_p_gain_ = 3200;
+    result_["r_ank_pitch" ]->position_p_gain_ = 1600;
     result_["l_ank_pitch" ]->position_p_gain_ = 1600;
 
-    result_["r_ank_roll" ]->position_p_gain_ = 3200;
+    result_["r_ank_roll" ]->position_p_gain_ = 1600;
     result_["l_ank_roll" ]->position_p_gain_ = 1600;
   }
   else if (balancing_idx == 7)
   {
     // R_BALANCING (R Support) second half
-    result_["r_hip_roll" ]->position_p_gain_ = 16000;
-    result_["l_hip_roll" ]->position_p_gain_ = 3000;
+    result_["r_hip_pitch" ]->position_p_gain_ = 4000;
+    result_["l_hip_pitch" ]->position_p_gain_ = 1600;
+
+    result_["r_hip_roll" ]->position_p_gain_ = 4000;
+    result_["l_hip_roll" ]->position_p_gain_ = 1600;
     
-    result_["r_knee" ]->position_p_gain_ = 8000;
+    result_["r_knee" ]->position_p_gain_ = 4000;
     result_["l_knee" ]->position_p_gain_ = 4000;
 
-    result_["r_ank_pitch" ]->position_p_gain_ = 3200;
+    result_["r_ank_pitch" ]->position_p_gain_ = 1600;
     result_["l_ank_pitch" ]->position_p_gain_ = 1600;
 
-    result_["r_ank_roll" ]->position_p_gain_ = 3200;
+    result_["r_ank_roll" ]->position_p_gain_ = 1600;
     result_["l_ank_roll" ]->position_p_gain_ = 1600;
   }
   else
   {
     // DS
-    result_["r_hip_roll" ]->position_p_gain_ = 3000;
-    result_["l_hip_roll" ]->position_p_gain_ = 3000;
+    result_["r_hip_pitch" ]->position_p_gain_ = 1600;
+    result_["l_hip_pitch" ]->position_p_gain_ = 1600;
+    
+    result_["r_hip_roll" ]->position_p_gain_ = 1600;
+    result_["l_hip_roll" ]->position_p_gain_ = 1600;
     
     result_["r_knee" ]->position_p_gain_ = 4000;
     result_["l_knee" ]->position_p_gain_ = 4000;
 
+    result_["r_ank_pitch" ]->position_p_gain_ = 800;
+    result_["l_ank_pitch" ]->position_p_gain_ = 800;
+    
     result_["r_ank_roll" ]->position_p_gain_ = 1600;
     result_["l_ank_roll" ]->position_p_gain_ = 1600;
+  }
+
+  if (ctrl_running_ == false) // for stop
+  {
+    if (x_move_amplitude_ == 0 && y_move_amplitude_ == 0 && a_move_amplitude_ == 0)
+    {
+      if (balancing_idx == 0 || balancing_idx == 1 || balancing_idx == 5)
+      {
+        result_["r_hip_pitch"]->position_p_gain_ = 800;
+        result_["l_hip_pitch"]->position_p_gain_ = 800;
+
+        result_["r_hip_roll"]->position_p_gain_ = 800;
+        result_["l_hip_roll"]->position_p_gain_ = 800;
+
+        result_["r_knee"]->position_p_gain_ = 800;
+        result_["l_knee"]->position_p_gain_ = 800;
+
+        result_["r_ank_pitch"]->position_p_gain_ = 800;
+        result_["l_ank_pitch"]->position_p_gain_ = 800;
+
+        result_["r_ank_roll"]->position_p_gain_ = 800;
+        result_["l_ank_roll"]->position_p_gain_ = 800;
+      }
+    }
   }
 }
 
@@ -844,7 +888,7 @@ bool WalkingModule::computeLegAngle(double *leg_angle)
   }
   else if (time_ <= r_ssp_end_time_)
   {
-    balancing_idx_ = BalancingPhase4;
+    balancing_idx_ = BalancingPhase2;
     left_leg_move.x = wSin(time_, x_move_period_time_,
                            x_move_phase_shift_ + 2 * M_PI / x_move_period_time_ * r_ssp_start_time_ + M_PI,
                            x_move_amplitude_, x_move_amplitude_shift_);
@@ -947,13 +991,13 @@ bool WalkingModule::computeLegAngle(double *leg_angle)
   // right leg
   if (op3_kd_->calcInverseKinematicsForRightLeg(&leg_angle[0], ep[0], ep[1], ep[2], ep[3], ep[4], ep[5]) == false)
   {
-    printf("IK not Solved EPR : %f %f %f %f %f %f\n", ep[0], ep[1], ep[2], ep[3], ep[4], ep[5]);
+    RCLCPP_ERROR(this->get_logger(), "IK not Solved EPR : %f %f %f %f %f %f", ep[0], ep[1], ep[2], ep[3], ep[4], ep[5]);
     return false;
   }
 
   if (op3_kd_->calcInverseKinematicsForLeftLeg(&leg_angle[6], ep[6], ep[7], ep[8], ep[9], ep[10], ep[11]) == false)
   {
-    printf("IK not Solved EPL : %f %f %f %f %f %f\n", ep[6], ep[7], ep[8], ep[9], ep[10], ep[11]);
+    RCLCPP_ERROR(this->get_logger(), "IK not Solved EPL : %f %f %f %f %f %f", ep[6], ep[7], ep[8], ep[9], ep[10], ep[11]);
     return false;
   }
 
@@ -1037,7 +1081,7 @@ void WalkingModule::loadWalkingParam(const std::string &path)
     doc = YAML::LoadFile(path.c_str());
   } catch (const std::exception& e)
   {
-    ROS_ERROR("Fail to load yaml file.");
+    RCLCPP_ERROR(this->get_logger(), "Fail to load yaml file.");
     return;
   }
 
@@ -1115,12 +1159,12 @@ void WalkingModule::saveWalkingParam(std::string &path)
 void WalkingModule::onModuleEnable()
 {
   walking_state_ = WalkingEnable;
-  ROS_INFO("Walking Enable");
+  RCLCPP_INFO(this->get_logger(), "Walking Enable");
 }
 
 void WalkingModule::onModuleDisable()
 {
-  ROS_INFO("Walking Disable");
+  RCLCPP_INFO(this->get_logger(), "Walking Disable");
   walking_state_ = WalkingDisable;
 }
 
