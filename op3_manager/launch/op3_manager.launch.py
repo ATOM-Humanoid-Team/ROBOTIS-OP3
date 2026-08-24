@@ -3,9 +3,8 @@ from launch import LaunchDescription
 from ament_index_python.packages import get_package_share_directory
 from launch_ros.actions import Node
 from launch.substitutions import LaunchConfiguration
-
-from launch.actions import DeclareLaunchArgument
-from launch.substitutions import LaunchConfiguration
+from launch.actions import DeclareLaunchArgument, IncludeLaunchDescription
+from launch.launch_description_sources import PythonLaunchDescriptionSource
 
 import os
 
@@ -20,6 +19,13 @@ def generate_launch_description():
     robot_file_path_default = get_package_share_directory('op3_manager') + '/config/OP3.robot'
     init_file_path_default = get_package_share_directory('op3_manager') + '/config/dxl_init_OP3.yaml'
     device_name_default = '/dev/ttyUSB0'
+
+    # ZMP Launch integration
+    zmp_launch = IncludeLaunchDescription(
+        PythonLaunchDescriptionSource(
+            os.path.join(get_package_share_directory('zmp'), 'launch', 'zmp.launch.py')
+        )
+    )
 
     return LaunchDescription([
         DeclareLaunchArgument(
@@ -46,11 +52,6 @@ def generate_launch_description():
                 'init_file_path': init_file_path_default,
                 'device_name': LaunchConfiguration('device_name')
             }]
-        )
-        # Node(
-        #     package='op3_localization',
-        #     executable='op3_localization',
-        #     name='op3_localization',
-        #     output='screen'
-        # )
+        ),
+        zmp_launch
     ])
