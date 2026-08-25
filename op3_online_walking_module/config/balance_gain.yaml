@@ -1,17 +1,17 @@
 ########## Gain ########
 # by gyro
-foot_roll_gyro_p_gain : 0.0
-foot_roll_gyro_d_gain : 0.0
+foot_roll_gyro_p_gain : 0.05
+foot_roll_gyro_d_gain : 0.005
 
-foot_pitch_gyro_p_gain : 0.0
-foot_pitch_gyro_d_gain : 0.0
+foot_pitch_gyro_p_gain : 0.05
+foot_pitch_gyro_d_gain : 0.005
 
 # by imu
-foot_roll_angle_p_gain : 0.0
-foot_roll_angle_d_gain : 0.0
+foot_roll_angle_p_gain : 0.08
+foot_roll_angle_d_gain : 0.008
 
-foot_pitch_angle_p_gain : 0.0
-foot_pitch_angle_d_gain : 0.0
+foot_pitch_angle_p_gain : 0.08
+foot_pitch_angle_d_gain : 0.008
 
 # by ft sensor
 foot_x_force_p_gain : 0.0
@@ -31,23 +31,23 @@ foot_pitch_torque_d_gain : 0.0
 
 ########## CUT OFF FREQUENCY ##########
 # by gyro
-roll_gyro_cut_off_frequency  : 30.0
-pitch_gyro_cut_off_frequency : 30.0
+roll_gyro_cut_off_frequency  : 20.0
+pitch_gyro_cut_off_frequency : 20.0
 
 # by imu
-roll_angle_cut_off_frequency  : 30.0
-pitch_angle_cut_off_frequency : 30.0
+roll_angle_cut_off_frequency  : 20.0
+pitch_angle_cut_off_frequency : 20.0
 
 # by ft sensor
-foot_x_force_cut_off_frequency : 30.0
-foot_y_force_cut_off_frequency : 30.0
-foot_z_force_cut_off_frequency : 30.0
-foot_roll_torque_cut_off_frequency : 30.0
-foot_pitch_torque_cut_off_frequency : 30.0
+foot_x_force_cut_off_frequency : 20.0
+foot_y_force_cut_off_frequency : 20.0
+foot_z_force_cut_off_frequency : 20.0
+foot_roll_torque_cut_off_frequency : 20.0
+foot_pitch_torque_cut_off_frequency : 20.0
 
 ###
 
-balance_hip_roll_gain    : 0.0 # 0.35  #0.0 #
-balance_knee_gain        : 0.0 # 0.3   #0.0 #
-balance_ankle_roll_gain  : 0.0 # 0.7   #0.0 #
-balance_ankle_pitch_gain : 0.0 # 0.9   #0.0 #
+balance_hip_roll_gain    : 0.42
+balance_knee_gain        : 0.32
+balance_ankle_roll_gain  : 0.70
+balance_ankle_pitch_gain : 0.85

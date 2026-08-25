@@ -215,6 +215,11 @@ class WalkingModule : public robotis_framework::MotionModule, public robotis_fra
   int phase_;
   double body_swing_y;
   double body_swing_z;
+
+  // IMU Gyro Low-Pass Filter for smooth balance sensory feedback
+  double filtered_rl_gyro_;
+  double filtered_fb_gyro_;
+  double gyro_lpf_alpha_;
 };
 
 }

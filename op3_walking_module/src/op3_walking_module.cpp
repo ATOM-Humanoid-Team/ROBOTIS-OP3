@@ -91,6 +91,10 @@ WalkingModule::WalkingModule()
   joint_axis_direction_ = Eigen::MatrixXi::Zero(1, result_.size());
 
   balancing_idx_ = BalancingPhase0;
+
+  filtered_rl_gyro_ = 0.0;
+  filtered_fb_gyro_ = 0.0;
+  gyro_lpf_alpha_ = 0.45;
 }
 
 WalkingModule::~WalkingModule()
@@ -498,10 +502,14 @@ void WalkingModule::process(std::map<std::string, robotis_framework::Dynamixel *
 
     computeArmAngle(&angle[12]);
 
-    double rl_gyro_err = 0.0 - sensors["gyro_x"];
-    double fb_gyro_err = 0.0 - sensors["gyro_y"];
+    double raw_rl_gyro = 0.0 - sensors["gyro_x"];
+    double raw_fb_gyro = 0.0 - sensors["gyro_y"];
 
-    sensoryFeedback(rl_gyro_err, fb_gyro_err, balance_angle);
+    // Low-Pass Filtering (fc ≈ 18 Hz, dt = 0.008s) to eliminate motor noise and high-frequency chattering
+    filtered_rl_gyro_ = gyro_lpf_alpha_ * raw_rl_gyro + (1.0 - gyro_lpf_alpha_) * filtered_rl_gyro_;
+    filtered_fb_gyro_ = gyro_lpf_alpha_ * raw_fb_gyro + (1.0 - gyro_lpf_alpha_) * filtered_fb_gyro_;
+
+    sensoryFeedback(filtered_rl_gyro_, filtered_fb_gyro_, balance_angle);
 
     double err_total = 0.0, err_max = 0.0;
     // set goal position
