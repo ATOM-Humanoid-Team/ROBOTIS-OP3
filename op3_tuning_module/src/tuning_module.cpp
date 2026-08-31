@@ -344,7 +344,14 @@ void TuningModule::queueThread()
   while (rclcpp::ok())
   {
     executor.spin_some();
-    rate.sleep();
+    try
+    {
+      rate.sleep();
+    }
+    catch (const std::exception &)
+    {
+      break;
+    }
   }
 }
 
@@ -680,7 +687,7 @@ void TuningModule::onModuleDisable()
 void TuningModule::setCtrlModule(std::string module)
 {
   std_msgs::msg::String control_msg;
-  control_msg.data = module_name_;
+  control_msg.data = module;
 
   set_ctrl_module_pub_->publish(control_msg);
 }

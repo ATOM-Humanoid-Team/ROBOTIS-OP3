@@ -165,7 +165,14 @@ void BaseModule::queueThread()
   while (rclcpp::ok())
   {
     executor.spin_some();
-    rate.sleep();
+    try
+    {
+      rate.sleep();
+    }
+    catch (const std::exception &)
+    {
+      break;
+    }
   }
 }
 
@@ -181,7 +188,16 @@ void BaseModule::initPoseMsgCallback(const std_msgs::msg::String::SharedPtr msg)
       // wait for changing the module to base_module and getting the goal position
       rclcpp::Rate wait_rate(125);
       while (enable_ == false || has_goal_joints_ == false)
-        wait_rate.sleep();
+      {
+        try
+        {
+          wait_rate.sleep();
+        }
+        catch (const std::exception &)
+        {
+          break;
+        }
+      }
 
       // parse initial pose
       parseInitPoseData(init_pose_file_path_);
@@ -394,7 +410,7 @@ void BaseModule::onModuleDisable()
 void BaseModule::setCtrlModule(std::string module)
 {
   std_msgs::msg::String control_msg;
-  control_msg.data = module_name_;
+  control_msg.data = module;
 
   set_ctrl_module_pub_->publish(control_msg);
 }

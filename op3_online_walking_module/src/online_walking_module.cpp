@@ -223,7 +223,14 @@ void OnlineWalkingModule::queueThread()
   while (rclcpp::ok())
   {
     executor.spin_some();
-    rate.sleep();
+    try
+    {
+      rate.sleep();
+    }
+    catch (const std::exception &)
+    {
+      break;
+    }
   }
 }
 

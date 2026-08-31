@@ -22,6 +22,7 @@
 ## Features & Enhancements
 - Updated walking parameters and set default `balance_enable` to `true`.
 - Added offset initialization pose (Page 255).
+- Mapped humanoid kicking motions in `op3_action_module` `motion_4095.bin`: Page 120 (`l_kick_170519`) and Page 121 (`r_kick_170519`).
 - Improved walking parameter tuning.
 - Changed default offset file location to `op3_manager/data/offset.yaml`.
 - Added support for `baudrate` as a parameter in `op3_manager`.

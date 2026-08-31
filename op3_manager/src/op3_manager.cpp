@@ -270,6 +270,8 @@ int main(int argc, char **argv)
 
   rclcpp::spin(node);
 
+  controller->stopTimer();
+
   rclcpp::shutdown();
   return 0;
 }
