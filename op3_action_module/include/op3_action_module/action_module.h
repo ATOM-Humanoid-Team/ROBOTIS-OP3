@@ -123,6 +123,8 @@ private:
   bool action_module_enabled_;
   bool previous_running_;
   bool present_running_;
+
+  double speed_ratio_;  ///< Global playback speed scale factor (0.0–1.0], default 1.0
 };
 
 }

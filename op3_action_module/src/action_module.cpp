@@ -68,6 +68,10 @@ ActionModule::ActionModule()
   action_module_enabled_ = false;
   previous_running_ = false;
   present_running_ = false;
+  speed_ratio_ = 1.0;
+
+  // Declare early so op3_manager can override via set_parameter() before initialize()
+  this->declare_parameter<double>("speed_ratio", 1.0);
 }
 
 ActionModule::~ActionModule()
@@ -104,6 +108,12 @@ void ActionModule::initialize(const int control_cycle_msec, robotis_framework::R
   this->declare_parameter<std::string>("action_file_path", path);
   std::string action_file_path = this->get_parameter("action_file_path").as_string();
 
+  // Read speed_ratio (may have been overridden by op3_manager before initialize())
+  speed_ratio_ = this->get_parameter("speed_ratio").as_double();
+  if (speed_ratio_ <= 0.0 || speed_ratio_ > 2.0)
+    speed_ratio_ = 1.0;
+  RCLCPP_INFO(this->get_logger(), "Action Module speed_ratio: %.2f", speed_ratio_);
+
   loadFile(action_file_path);
 
   playing_ = false;
@@ -115,18 +125,18 @@ void ActionModule::queueThread()
   executor->add_node(this->get_node_base_interface());
 
   /* publisher */
-  status_msg_pub_ = this->create_publisher<robotis_controller_msgs::msg::StatusMsg>("/robotis/status", 10);
-  done_msg_pub_ = this->create_publisher<std_msgs::msg::String>("/robotis/movement_done", 10);
+  status_msg_pub_ = this->create_publisher<robotis_controller_msgs::msg::StatusMsg>("robotis/status", 10);
+  done_msg_pub_ = this->create_publisher<std_msgs::msg::String>("robotis/movement_done", 10);
 
   /* subscriber */
   auto action_page_sub = this->create_subscription<std_msgs::msg::Int32>(
-      "/robotis/action/page_num", 10, std::bind(&ActionModule::pageNumberCallback, this, std::placeholders::_1));
+      "robotis/action/page_num", 10, std::bind(&ActionModule::pageNumberCallback, this, std::placeholders::_1));
   auto start_action_sub = this->create_subscription<op3_action_module_msgs::msg::StartAction>(
-      "/robotis/action/start_action", 10, std::bind(&ActionModule::startActionCallback, this, std::placeholders::_1));
+      "robotis/action/start_action", 10, std::bind(&ActionModule::startActionCallback, this, std::placeholders::_1));
 
   /* ROS Service Callback Functions */
   auto is_running_server = this->create_service<op3_action_module_msgs::srv::IsRunning>(
-      "/robotis/action/is_running", std::bind(&ActionModule::isRunningServiceCallback, this, std::placeholders::_1, std::placeholders::_2));
+      "robotis/action/is_running", std::bind(&ActionModule::isRunningServiceCallback, this, std::placeholders::_1, std::placeholders::_2));
 
   rclcpp::Rate rate(1000.0 / control_cycle_msec_);
   while (rclcpp::ok())
@@ -481,6 +491,13 @@ bool ActionModule::start(int page_number, action_file_define::Page* page)
   }
 
   play_page_ = *page;
+
+  // Apply global speed scaling factor
+  if (speed_ratio_ != 1.0 && speed_ratio_ > 0.0)
+  {
+    int scaled_speed = static_cast<int>(play_page_.header.speed * speed_ratio_);
+    play_page_.header.speed = static_cast<unsigned char>(std::max(1, std::min(255, scaled_speed)));
+  }
 
   if (play_page_.header.repeat == 0 || play_page_.header.stepnum == 0)
   {

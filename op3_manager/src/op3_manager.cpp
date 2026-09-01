@@ -163,10 +163,10 @@ int main(int argc, char **argv)
   node->get_parameter("device_name", g_device_name);
   node->get_parameter("baud_rate", g_baudrate);
 
-  auto button_sub = node->create_subscription<std_msgs::msg::String>("/robotis/open_cr/button", 1, buttonHandlerCallback);
-  auto dxl_torque_sub = node->create_subscription<std_msgs::msg::String>("/robotis/dxl_torque", 1, dxlTorqueCheckCallback);
-  g_init_pose_pub = node->create_publisher<std_msgs::msg::String>("/robotis/base/ini_pose", 10);
-  g_demo_command_pub = node->create_publisher<std_msgs::msg::String>("/ball_tracker/command", 10);
+  auto button_sub = node->create_subscription<std_msgs::msg::String>("robotis/open_cr/button", 1, buttonHandlerCallback);
+  auto dxl_torque_sub = node->create_subscription<std_msgs::msg::String>("robotis/dxl_torque", 1, dxlTorqueCheckCallback);
+  g_init_pose_pub = node->create_publisher<std_msgs::msg::String>("robotis/base/ini_pose", 10);
+  g_demo_command_pub = node->create_publisher<std_msgs::msg::String>("ball_tracker/command", 10);
 
   node->declare_parameter<bool>("simulation", false);
   node->get_parameter("simulation", controller->gazebo_mode_);
@@ -248,6 +248,18 @@ int main(int argc, char **argv)
   controller->addSensorModule((SensorModule*) OpenCRModule::getInstance());
 
   /* Add Motion Module */
+  // Forward speed_ratio from launch parameters to ActionModule (simulation tuning)
+  {
+    node->declare_parameter<double>("action_speed_ratio", 1.0);
+    double speed_ratio = node->get_parameter("action_speed_ratio").as_double();
+    if (speed_ratio != 1.0 && speed_ratio > 0.0 && speed_ratio <= 2.0)
+    {
+      auto action_node = ActionModule::getInstance();
+      // Override speed_ratio parameter before initialize() is called by controller
+      action_node->set_parameter(rclcpp::Parameter("speed_ratio", speed_ratio));
+      RCLCPP_INFO(node->get_logger(), "Action speed_ratio set to %.2f", speed_ratio);
+    }
+  }
   controller->addMotionModule((MotionModule*) ActionModule::getInstance());
   controller->addMotionModule((MotionModule*) BaseModule::getInstance());
   controller->addMotionModule((MotionModule*) HeadControlModule::getInstance());
