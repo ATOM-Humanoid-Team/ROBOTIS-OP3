@@ -46,6 +46,10 @@ WalkingModule::WalkingModule()
   init_pose_count_ = 0;
   walking_state_ = WalkingReady;
   previous_x_move_amplitude_ = 0.0;
+  accum_x_ = 0.0;
+  accum_y_ = 0.0;
+  accum_yaw_ = 0.0;
+  pelvis_pub_divider_ = 0;
 
   op3_kd_ = new OP3KinematicsDynamics(WholeBody);
 
@@ -183,6 +187,7 @@ void WalkingModule::queueThread()
 
   /* publish topics */
   status_msg_pub_ = this->create_publisher<robotis_controller_msgs::msg::StatusMsg>("robotis/status", 1);
+  pelvis_pose_pub_ = this->create_publisher<geometry_msgs::msg::PoseStamped>("robotis/pelvis_pose", 10);
 
   /* ROS Service Callback Functions */
   auto get_walking_param_server = this->create_service<op3_walking_module_msgs::srv::GetWalkingParam>(
@@ -193,6 +198,8 @@ void WalkingModule::queueThread()
     "robotis/walking/command", 10, std::bind(&WalkingModule::walkingCommandCallback, this, std::placeholders::_1));
   auto walking_param_sub = this->create_subscription<op3_walking_module_msgs::msg::WalkingParam>(
     "robotis/walking/set_params", 10, std::bind(&WalkingModule::walkingParameterCallback, this, std::placeholders::_1));
+  auto pelvis_reset_sub = this->create_subscription<std_msgs::msg::String>(
+    "robotis/pelvis_pose_reset", 10, std::bind(&WalkingModule::pelvisResetCallback, this, std::placeholders::_1));
 
   rclcpp::Rate rate(1000.0 / control_cycle_msec_);
   while (rclcpp::ok())
@@ -218,6 +225,38 @@ void WalkingModule::publishStatusMsg(unsigned int type, std::string msg)
   status_msg.status_msg = msg;
 
   status_msg_pub_->publish(status_msg);
+}
+
+void WalkingModule::publishPelvisPose(double x, double y, double z, double roll, double pitch, double yaw)
+{
+  if (!pelvis_pose_pub_)
+    return;
+
+  geometry_msgs::msg::PoseStamped msg;
+  msg.header.stamp = rclcpp::Clock().now();
+  msg.header.frame_id = "world";
+  msg.pose.position.x = x;
+  msg.pose.position.y = y;
+  msg.pose.position.z = z;
+
+  Eigen::Quaterniond q = robotis_framework::convertRPYToQuaternion(roll, pitch, yaw);
+  msg.pose.orientation.x = q.x();
+  msg.pose.orientation.y = q.y();
+  msg.pose.orientation.z = q.z();
+  msg.pose.orientation.w = q.w();
+
+  pelvis_pose_pub_->publish(msg);
+}
+
+void WalkingModule::pelvisResetCallback(const std_msgs::msg::String::SharedPtr msg)
+{
+  if (msg->data == "reset")
+  {
+    accum_x_ = 0.0;
+    accum_y_ = 0.0;
+    accum_yaw_ = 0.0;
+    publishPelvisPose(0.0, 0.0, 0.2495256, 0.0, 0.0, 0.0);
+  }
 }
 
 void WalkingModule::walkingCommandCallback(const std_msgs::msg::String::SharedPtr msg)
@@ -603,6 +642,26 @@ void WalkingModule::process(std::map<std::string, robotis_framework::Dynamixel *
     {
       time_ = 0;
       previous_x_move_amplitude_ = walking_param_.x_move_amplitude * 0.5;
+    }
+
+    if (period_time_ > 0.001)
+    {
+      double vx = 2.0 * x_move_amplitude_ / period_time_;
+      double vy = 2.0 * y_move_amplitude_ / period_time_;
+      double wz = 2.0 * a_move_amplitude_ / period_time_;
+
+      accum_yaw_ += wz * time_unit;
+      double dx_global = (cos(accum_yaw_) * vx - sin(accum_yaw_) * vy) * time_unit;
+      double dy_global = (sin(accum_yaw_) * vx + cos(accum_yaw_) * vy) * time_unit;
+
+      accum_x_ += dx_global;
+      accum_y_ += dy_global;
+
+      pelvis_pub_divider_++;
+      if (pelvis_pub_divider_ % 3 == 0)
+      {
+        publishPelvisPose(accum_x_, accum_y_, 0.2495256, 0.0, 0.0, accum_yaw_);
+      }
     }
   }
 }

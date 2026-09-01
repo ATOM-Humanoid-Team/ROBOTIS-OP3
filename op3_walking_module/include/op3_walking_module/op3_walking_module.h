@@ -32,6 +32,7 @@
 #include <std_msgs/msg/string.hpp>
 #include <sensor_msgs/msg/imu.hpp>
 #include <geometry_msgs/msg/pose.hpp>
+#include <geometry_msgs/msg/pose_stamped.hpp>
 
 #include "robotis_controller_msgs/msg/status_msg.hpp"
 #include "op3_walking_module_msgs/msg/walking_param.hpp"
@@ -137,7 +138,16 @@ class WalkingModule : public robotis_framework::MotionModule, public robotis_fra
 
   /* ROS Topic Publish Functions */
   rclcpp::Publisher<geometry_msgs::msg::Pose>::SharedPtr robot_pose_pub_;
+  rclcpp::Publisher<geometry_msgs::msg::PoseStamped>::SharedPtr pelvis_pose_pub_;
   rclcpp::Publisher<robotis_controller_msgs::msg::StatusMsg>::SharedPtr status_msg_pub_;
+
+  void publishPelvisPose(double x, double y, double z, double roll, double pitch, double yaw);
+  void pelvisResetCallback(const std_msgs::msg::String::SharedPtr msg);
+
+  double accum_x_;
+  double accum_y_;
+  double accum_yaw_;
+  int pelvis_pub_divider_;
 
   Eigen::MatrixXd calc_joint_tra_;
 

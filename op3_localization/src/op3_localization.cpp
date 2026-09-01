@@ -74,6 +74,7 @@ void OP3Localization::initialize()
   pelvis_reset_msg_sub_ = this->create_subscription<std_msgs::msg::String>(
     "robotis/pelvis_pose_reset", 5, std::bind(&OP3Localization::pelvisPoseResetCallback, this, std::placeholders::_1));
 
+  RCLCPP_INFO(this->get_logger(), "OP3 Localization Node Initialized [Broadcasting TF: world -> body_link]");
 }
 
 void OP3Localization::pelvisPoseCallback(const geometry_msgs::msg::PoseStamped::SharedPtr msg)
