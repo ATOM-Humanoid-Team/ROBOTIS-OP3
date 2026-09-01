@@ -65,9 +65,9 @@ void TuningModule::initialize(const int control_cycle_msec, robotis_framework::R
   }
 
   /* publish topics */
-  status_msg_pub_ = this->create_publisher<robotis_controller_msgs::msg::StatusMsg>("/robotis/status", 1);
-  set_ctrl_module_pub_ = this->create_publisher<std_msgs::msg::String>("/robotis/enable_ctrl_module", 1);
-  sync_write_pub_ = this->create_publisher<robotis_controller_msgs::msg::SyncWriteItem>("/robotis/sync_write_item", 1);
+  status_msg_pub_ = this->create_publisher<robotis_controller_msgs::msg::StatusMsg>("robotis/status", 1);
+  set_ctrl_module_pub_ = this->create_publisher<std_msgs::msg::String>("robotis/enable_ctrl_module", 1);
+  sync_write_pub_ = this->create_publisher<robotis_controller_msgs::msg::SyncWriteItem>("robotis/sync_write_item", 1);
 
   tune_pose_path_ = ament_index_cpp::get_package_share_directory("op3_tuning_module") + "/data/tune_pose.yaml";
   offset_path_ = ament_index_cpp::get_package_share_directory("op3_manager") + "/config/offset.yaml";
@@ -328,17 +328,17 @@ void TuningModule::queueThread()
   executor.add_node(this->get_node_base_interface());
 
   /* subscribe topics */
-  auto ini_pose_msg_sub = this->create_subscription<std_msgs::msg::String>("/robotis/tuning_module/tuning_pose", 5, std::bind(&TuningModule::tunePoseMsgCallback, this, std::placeholders::_1));
+  auto ini_pose_msg_sub = this->create_subscription<std_msgs::msg::String>("robotis/tuning_module/tuning_pose", 5, std::bind(&TuningModule::tunePoseMsgCallback, this, std::placeholders::_1));
 
-  joint_offset_data_sub_ = this->create_subscription<op3_tuning_module_msgs::msg::JointOffsetData>("/robotis/tuning_module/joint_offset_data", 10, std::bind(&TuningModule::jointOffsetDataCallback, this, std::placeholders::_1));
-  joint_gain_data_sub_ = this->create_subscription<op3_tuning_module_msgs::msg::JointOffsetData>("/robotis/tuning_module/joint_gain_data", 10, std::bind(&TuningModule::jointGainDataCallback, this, std::placeholders::_1));
-  joint_torque_enable_sub_ = this->create_subscription<op3_tuning_module_msgs::msg::JointTorqueOnOffArray>("/robotis/tuning_module/torque_enable", 10, std::bind(&TuningModule::jointTorqueOnOffCallback, this, std::placeholders::_1));
-  command_sub_ = this->create_subscription<std_msgs::msg::String>("/robotis/tuning_module/command", 5, std::bind(&TuningModule::commandCallback, this, std::placeholders::_1));
+  joint_offset_data_sub_ = this->create_subscription<op3_tuning_module_msgs::msg::JointOffsetData>("robotis/tuning_module/joint_offset_data", 10, std::bind(&TuningModule::jointOffsetDataCallback, this, std::placeholders::_1));
+  joint_gain_data_sub_ = this->create_subscription<op3_tuning_module_msgs::msg::JointOffsetData>("robotis/tuning_module/joint_gain_data", 10, std::bind(&TuningModule::jointGainDataCallback, this, std::placeholders::_1));
+  joint_torque_enable_sub_ = this->create_subscription<op3_tuning_module_msgs::msg::JointTorqueOnOffArray>("robotis/tuning_module/torque_enable", 10, std::bind(&TuningModule::jointTorqueOnOffCallback, this, std::placeholders::_1));
+  command_sub_ = this->create_subscription<std_msgs::msg::String>("robotis/tuning_module/command", 5, std::bind(&TuningModule::commandCallback, this, std::placeholders::_1));
   offset_data_server_ = this->create_service<op3_tuning_module_msgs::srv::GetPresentJointOffsetData>("robotis/tuning_module/get_present_joint_offset_data", std::bind(&TuningModule::getPresentJointOffsetDataServiceCallback, this, std::placeholders::_1, std::placeholders::_2));
 
-  set_module_client_ = this->create_client<robotis_controller_msgs::srv::SetModule>("/robotis/set_present_ctrl_modules");
-  enable_offset_pub_ = this->create_publisher<std_msgs::msg::Bool>("/robotis/enable_offset", 1);
-  load_offset_client_ = this->create_client<robotis_controller_msgs::srv::LoadOffset>("/robotis/load_offset");
+  set_module_client_ = this->create_client<robotis_controller_msgs::srv::SetModule>("robotis/set_present_ctrl_modules");
+  enable_offset_pub_ = this->create_publisher<std_msgs::msg::Bool>("robotis/enable_offset", 1);
+  load_offset_client_ = this->create_client<robotis_controller_msgs::srv::LoadOffset>("robotis/load_offset");
 
   rclcpp::Rate rate(1000.0 / control_cycle_msec_);
   while (rclcpp::ok())

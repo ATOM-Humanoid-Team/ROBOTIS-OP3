@@ -186,13 +186,13 @@ void WalkingModule::queueThread()
 
   /* ROS Service Callback Functions */
   auto get_walking_param_server = this->create_service<op3_walking_module_msgs::srv::GetWalkingParam>(
-    "/robotis/walking/get_params", std::bind(&WalkingModule::getWalkingParameterCallback, this, std::placeholders::_1, std::placeholders::_2));
+    "robotis/walking/get_params", std::bind(&WalkingModule::getWalkingParameterCallback, this, std::placeholders::_1, std::placeholders::_2));
 
   /* sensor topic subscribe */
   auto walking_command_sub = this->create_subscription<std_msgs::msg::String>(
-    "/robotis/walking/command", 10, std::bind(&WalkingModule::walkingCommandCallback, this, std::placeholders::_1));
+    "robotis/walking/command", 10, std::bind(&WalkingModule::walkingCommandCallback, this, std::placeholders::_1));
   auto walking_param_sub = this->create_subscription<op3_walking_module_msgs::msg::WalkingParam>(
-    "/robotis/walking/set_params", 10, std::bind(&WalkingModule::walkingParameterCallback, this, std::placeholders::_1));
+    "robotis/walking/set_params", 10, std::bind(&WalkingModule::walkingParameterCallback, this, std::placeholders::_1));
 
   rclcpp::Rate rate(1000.0 / control_cycle_msec_);
   while (rclcpp::ok())

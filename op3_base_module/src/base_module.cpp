@@ -73,8 +73,8 @@ void BaseModule::initialize(const int control_cycle_msec, robotis_framework::Rob
   init_pose_file_path_ = this->get_parameter("init_pose_file_path").as_string();
 
   /* publish topics */
-  status_msg_pub_ = this->create_publisher<robotis_controller_msgs::msg::StatusMsg>("/robotis/status", 1);
-  set_ctrl_module_pub_ = this->create_publisher<std_msgs::msg::String>("/robotis/enable_ctrl_module", 1);
+  status_msg_pub_ = this->create_publisher<robotis_controller_msgs::msg::StatusMsg>("robotis/status", 1);
+  set_ctrl_module_pub_ = this->create_publisher<std_msgs::msg::String>("robotis/enable_ctrl_module", 1);
 
   queue_thread_ = std::make_unique<std::thread>(&BaseModule::queueThread, this);
 }
@@ -157,9 +157,9 @@ void BaseModule::queueThread()
   executor.add_node(this->get_node_base_interface());
 
   /* subscribe topics */
-  auto ini_pose_msg_sub = this->create_subscription<std_msgs::msg::String>("/robotis/base/ini_pose", 5, 
+  auto ini_pose_msg_sub = this->create_subscription<std_msgs::msg::String>("robotis/base/ini_pose", 5, 
                                     std::bind(&BaseModule::initPoseMsgCallback, this, std::placeholders::_1));
-  set_module_client_ = this->create_client<robotis_controller_msgs::srv::SetModule>("/robotis/set_present_ctrl_modules");
+  set_module_client_ = this->create_client<robotis_controller_msgs::srv::SetModule>("robotis/set_present_ctrl_modules");
 
   rclcpp::Rate rate(1000.0 / control_cycle_msec_);
   while (rclcpp::ok())

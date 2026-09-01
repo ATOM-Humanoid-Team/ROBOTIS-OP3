@@ -91,16 +91,16 @@ void DirectControlModule::initialize(const int control_cycle_msec, robotis_frame
   control_cycle_msec_ = control_cycle_msec;
 
   /* get Param */
-  this->declare_parameter<double>("/robotis/direct_control/default_moving_time", default_moving_time_);
-  this->declare_parameter<double>("/robotis/direct_control/default_moving_angle", default_moving_angle_);
-  this->declare_parameter<bool>("/robotis/direct_control/check_collision", check_collision_);
+  this->declare_parameter<double>("robotis.direct_control.default_moving_time", default_moving_time_);
+  this->declare_parameter<double>("robotis.direct_control.default_moving_angle", default_moving_angle_);
+  this->declare_parameter<bool>("robotis.direct_control.check_collision", check_collision_);
 
-  this->get_parameter("/robotis/direct_control/default_moving_time", default_moving_time_);
-  this->get_parameter("/robotis/direct_control/default_moving_angle", default_moving_angle_);
-  this->get_parameter("/robotis/direct_control/check_collision", check_collision_);
+  this->get_parameter("robotis.direct_control.default_moving_time", default_moving_time_);
+  this->get_parameter("robotis.direct_control.default_moving_angle", default_moving_angle_);
+  this->get_parameter("robotis.direct_control.check_collision", check_collision_);
 
   /* publish topics */
-  status_msg_pub_ = this->create_publisher<robotis_controller_msgs::msg::StatusMsg>("/robotis/status", 10);
+  status_msg_pub_ = this->create_publisher<robotis_controller_msgs::msg::StatusMsg>("robotis/status", 10);
 }
 
 void DirectControlModule::queueThread()
@@ -110,7 +110,7 @@ void DirectControlModule::queueThread()
 
   /* subscribe topics */
   auto set_head_joint_sub = this->create_subscription<sensor_msgs::msg::JointState>(
-      "/robotis/direct_control/set_joint_states", 1,
+      "robotis/direct_control/set_joint_states", 1,
       std::bind(&DirectControlModule::setJointCallback, this, std::placeholders::_1));
 
   rclcpp::Rate rate(1000.0 / control_cycle_msec_);

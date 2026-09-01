@@ -77,7 +77,7 @@ void HeadControlModule::initialize(const int control_cycle_msec, robotis_framewo
   control_cycle_msec_ = control_cycle_msec;
 
   /* publish topics */
-  status_msg_pub_ = this->create_publisher<robotis_controller_msgs::msg::StatusMsg>("/robotis/status", 10);
+  status_msg_pub_ = this->create_publisher<robotis_controller_msgs::msg::StatusMsg>("robotis/status", 10);
 }
 
 void HeadControlModule::queueThread()
@@ -87,11 +87,11 @@ void HeadControlModule::queueThread()
 
   /* subscribe topics */
   auto set_head_joint_sub = this->create_subscription<sensor_msgs::msg::JointState>(
-      "/robotis/head_control/set_joint_states", 10, std::bind(&HeadControlModule::setHeadJointCallback, this, std::placeholders::_1));
+      "robotis/head_control/set_joint_states", 10, std::bind(&HeadControlModule::setHeadJointCallback, this, std::placeholders::_1));
   auto set_head_joint_offset_sub = this->create_subscription<sensor_msgs::msg::JointState>(
-      "/robotis/head_control/set_joint_states_offset", 10, std::bind(&HeadControlModule::setHeadJointOffsetCallback, this, std::placeholders::_1));
+      "robotis/head_control/set_joint_states_offset", 10, std::bind(&HeadControlModule::setHeadJointOffsetCallback, this, std::placeholders::_1));
   auto set_head_scan_sub = this->create_subscription<std_msgs::msg::String>(
-      "/robotis/head_control/scan_command", 10, std::bind(&HeadControlModule::setHeadScanCallback, this, std::placeholders::_1));
+      "robotis/head_control/scan_command", 10, std::bind(&HeadControlModule::setHeadScanCallback, this, std::placeholders::_1));
 
   rclcpp::Rate rate(1000.0 / control_cycle_msec_);
   while (rclcpp::ok())

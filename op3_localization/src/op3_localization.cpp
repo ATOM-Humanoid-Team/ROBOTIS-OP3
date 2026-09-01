@@ -67,12 +67,12 @@ void OP3Localization::initialize()
 {
   // subscriber
   pelvis_pose_msg_sub_ = this->create_subscription<geometry_msgs::msg::PoseStamped>(
-    "/robotis/pelvis_pose", 5, std::bind(&OP3Localization::pelvisPoseCallback, this, std::placeholders::_1));
+    "robotis/pelvis_pose", 5, std::bind(&OP3Localization::pelvisPoseCallback, this, std::placeholders::_1));
 //  pelvis_base_walking_msg_sub_ = this->create_subscription<geometry_msgs::msg::PoseStamped>(
-//      "/robotis/pelvis_pose_base_walking", 5, std::bind(&OP3Localization::pelvisPoseBaseWalkingCallback, this, std::placeholders::_1));
+//      "robotis/pelvis_pose_base_walking", 5, std::bind(&OP3Localization::pelvisPoseBaseWalkingCallback, this, std::placeholders::_1));
 
   pelvis_reset_msg_sub_ = this->create_subscription<std_msgs::msg::String>(
-    "/robotis/pelvis_pose_reset", 5, std::bind(&OP3Localization::pelvisPoseResetCallback, this, std::placeholders::_1));
+    "robotis/pelvis_pose_reset", 5, std::bind(&OP3Localization::pelvisPoseResetCallback, this, std::placeholders::_1));
 
 }
 
